@@ -15,7 +15,6 @@ type FibHeap struct {
 
 type Fibtree struct {
 	Parent, Child, next, prev *Fibtree
-	Key                       int
 	Degree                    int
 	Mark                      bool
 	key                       int
@@ -59,16 +58,18 @@ func mergeintolist(one, two *Fibtree) *Fibtree {
 	} else if one != nil && two == nil {
 		return one
 	} else {
-		y := one.prev
-		one.prev = two
-		two.next = one
-		two.prev = y
-		y.next = two
-		if two.Key < one.Key {
-			return two
-		} else {
+		oneNext := one.next
+		one.next = two.next
+		one.next.prev = one
+		two.next = oneNext
+		two.next.prev = two
+		fmt.Println("one is ", one.key)
+		fmt.Println("two is", two.key)
+		if one.key < two.key {
+			fmt.Println("inside one")
 			return one
 		}
+		return two
 	}
 }
 func printSpaces(cnt int) {
@@ -89,39 +90,103 @@ func (fb *FibHeap) PrintRoot() {
 	}
 }
 
-func (fb *FibHeap) DeleteMin() {
-	k := fb.minheap
-	//heap is empty
-	if k != nil {
-		addchildToHeap(fb, k.Child)
-		k.Parent = nil
-		if k.next == k {
-			fb.minheap = nil
-		} else {
-			fb.minheap = k.next
-			Consolidate(fb)
+func (fb *FibHeap) DeleteMin() *Fibtree {
+	fb.nodes -= 1
+	min := fb.minheap
+	if min.next == min {
+		fb.minheap = nil
+	} else {
+		fb.minheap.prev.next = fb.minheap.next
+		fb.minheap.next.prev = fb.minheap.prev
+		fb.minheap = fb.minheap.next //assign arbitary
+	}
+	if min.Child != nil {
+		curr := min.Child
+		for curr != min.Child {
+			curr.Parent = nil
+			curr = curr.next
 		}
 	}
-	fb.nodes -= 1
-	return k
-}
-
-func Consolidate(fb *FibHeap) {
-
-}
-func addchildToHeap(fb *FibHeap, chil *Fibtree) {
-	if chil == nil {
-		return
-	} else {
-		track := fb.minheap.prev
-		track.next = chil
-		chil.prev = track
+	fb.minheap = mergeintolist(fb.minheap, min.Child)
+	if fb.minheap == nil {
+		return nil
 	}
+	treeSlice := make([]*Fibtree, 0, fb.nodes)
+	toVisit := make([]*Fibtree, 0, fb.nodes)
+
+	for curr := fb.minheap; len(toVisit) == 0 || toVisit[0] != curr; curr = curr.next {
+		toVisit = append(toVisit, curr)
+	}
+	for _, curr := range toVisit {
+		for {
+			for curr.Degree >= len(treeSlice) {
+				treeSlice = append(treeSlice, nil)
+			}
+			if treeSlice[curr.Degree] == nil {
+				treeSlice[curr.Degree] = curr
+				break
+			}
+
+			other := treeSlice[curr.Degree]
+			treeSlice[curr.Degree] = nil
+			var minT, maxT *Fibtree
+			if other.key < curr.key {
+				minT = other
+				maxT = curr
+			} else {
+				minT = curr
+				maxT = other
+			}
+
+			//rmeove from root
+			maxT.next.prev = maxT.prev
+			maxT.prev.next = maxT.next
+
+			maxT.next = maxT
+			maxT.prev = maxT
+			maxT.Parent = minT
+			maxT.Mark = false
+			minT.Degree += 1
+			curr = minT
+		}
+		if curr.key <= fb.minheap.key {
+			fb.minheap = curr
+		}
+	}
+	return min
+}
+func (fb1 *FibHeap) Merge(fb2 *FibHeap) *FibHeap {
+	if fb1 == nil || fb2 == nil {
+		return nil
+	}
+	newsixe := fb1.nodes + fb2.nodes
+	newheap := mergeintolist(fb1.minheap, fb2.minheap)
+	fb1.minheap = nil
+	fb2.minheap = nil
+	fb1.nodes = 0
+	fb2.nodes = 0
+	nn := CreateNewHeap()
+	nn.minheap = newheap
+	nn.nodes = newsixe
+	return nn
+}
+func (fb *FibHeap) PrintMin() {
+	fmt.Println("MIN IS ", fb.minheap)
 }
 func main() {
 	heap1 := CreateNewHeap()
-	fmt.Println("heap is ", heap1)
-	heap1.Insert(3, "priya")
+	heap2 := CreateNewHeap()
+	//fmt.Println("heap is ", heap1)
+	heap2.Insert(100, "test")
+	heap1.Insert(34, "priya")
+	//heap1.PrintMin()
 	heap1.Insert(7, "jdfnc")
-	heap1.PrintRoot()
+	//heap1.PrintMin()
+	heap1.Insert(47, "fvf")
+	//heap1.PrintMin()
+	heap1.Insert(87, "frf")
+	h := heap1.Merge(heap2)
+	h.PrintMin()
+	//fmt.Println("min is", heap1.DeleteMin())
+	//fmt.Println("min is", heap1.DeleteMin())
 }
